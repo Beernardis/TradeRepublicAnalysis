@@ -155,14 +155,77 @@
         }
 
         .portfolio-summary h3 {
+            margin-bottom: 1.5rem;
+            font-size: 1.75rem;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+
+        .portfolio-summary .summary-item {
             margin-bottom: 1rem;
-            font-size: 1.5rem;
+            font-size: 1.1rem;
+        }
+
+        .portfolio-summary .summary-item strong {
+            font-weight: bold;
+            color: #333;
+        }
+
+        .portfolio-summary .positive {
+            color: #28a745;
+        }
+
+        .portfolio-summary .negative {
+            color: #dc3545;
+        }
+
+        .ticker-summary {
+            margin-bottom: 1.5rem;
+            padding: 1rem;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .ticker-summary h6 {
+            margin-bottom: 0.75rem;
+            font-size: 1.1rem;
             font-weight: bold;
         }
 
-        .portfolio-summary p {
+        .ticker-summary p {
             margin: 0;
+            font-size: 1rem;
+            color: #555;
+        }
+
+        .ticker-summary .positive {
+            color: #28a745;
+        }
+
+        .ticker-summary .negative {
+            color: #dc3545;
+        }
+
+        .ticker-contribution {
+            margin-top: 1.5rem;
+        }
+
+        .ticker-contribution h6 {
             font-size: 1.1rem;
+            font-weight: bold;
+            margin-bottom: 0.75rem;
+        }
+
+        .ticker-contribution ul {
+            list-style-type: none;
+            padding: 0;
+        }
+
+        .ticker-contribution li {
+            margin-bottom: 0.5rem;
+            font-size: 1rem;
+            color: #555;
         }
     </style>
 </head>
@@ -189,7 +252,19 @@
         <!-- Rendimento complessivo del portafoglio -->
         <div id="portfolioSummary" class="portfolio-summary">
             <h3>Rendimento Complessivo del Portafoglio</h3>
-            <p id="totalPortfolioReturn">€0.00 (0.00%)</p>
+            <div class="summary-item">
+                <strong>Totale Investito:</strong> <span id="totalPortfolioInvested">€0.00</span>
+            </div>
+            <div class="summary-item">
+                <strong>Valore Attuale:</strong> <span id="totalPortfolioValue">€0.00</span>
+            </div>
+            <div class="summary-item">
+                <strong>Variazione Totale:</strong> <span id="totalPortfolioReturn">€0.00 (0.00%)</span>
+            </div>
+            <div class="ticker-contribution">
+                <h6>Contributo dei Ticker:</h6>
+                <ul id="tickerContributionList"></ul>
+            </div>
         </div>
 
         <!-- Sezione per ogni Ticker -->
@@ -318,7 +393,6 @@
             let totalInvested = 0;
             let totalCurrentValue = 0;
             let totalShares = 0; // Totale azioni possedute per il ticker
-
             let totalProfit = 0;
             let totalProfitPercentage = 0;
 
@@ -353,8 +427,16 @@
 
                     <div id="collapse-${ticker}" class="collapse" aria-labelledby="heading-${ticker}" data-bs-parent="#tickersSection">
                         <div class="card-body">
-                            <h6>Totale Azioni Possedute: ${totalShares.toFixed(7)}</h6>
-                            <h6>Posizioni:</h6>
+                            <!-- Sezione riassuntiva -->
+                            <div class="ticker-summary">
+                                <h6>Totale Azioni Possedute: ${totalShares.toFixed(7)}</h6>
+                                <h6>Totale Investito: €${totalInvested.toFixed(2)}</h6>
+                                <h6>Valore Attuale: €${totalCurrentValue.toFixed(2)}</h6>
+                                <h6 class="${totalProfit >= 0 ? 'positive' : 'negative'}">Variazione Totale: €${totalProfit.toFixed(2)} (${totalProfitPercentage.toFixed(2)}%)</h6>
+                            </div>
+
+                            <!-- Tabella delle posizioni -->
+                            <h6 class="mt-4">Posizioni:</h6>
                             <table class="table table-bordered">
                                 <thead>
                                     <tr>
@@ -395,9 +477,6 @@
             tickersHTML += `
                                 </tbody>
                             </table>
-                            <h6>Totale Investito: €${totalInvested.toFixed(2)}</h6>
-                            <h6>Valore Attuale: €${totalCurrentValue.toFixed(2)}</h6>
-                            <h6 class="${totalProfit >= 0 ? 'positive' : 'negative'}">Variazione Totale: €${totalProfit.toFixed(2)} (${totalProfitPercentage.toFixed(2)}%)</h6>
                         </div>
                     </div>
                 </div>
@@ -414,39 +493,67 @@
 
         // Funzione per aggiornare il rendimento complessivo del portafoglio
         function updatePortfolioSummary() {
-    let totalPortfolioInvested = 0;
-    let totalPortfolioValue = 0;
-    let hasConfirmedTicker = false;
+            let totalPortfolioInvested = 0;
+            let totalPortfolioValue = 0;
+            let hasConfirmedTicker = false;
+            const tickerContributions = [];
 
-    Object.keys(investments).forEach(ticker => {
-        if (currentPrices.hasOwnProperty(ticker)) { // Controlla se il ticker è confermato
-            hasConfirmedTicker = true;
-            const data = investments[ticker];
-            const currentPrice = currentPrices[ticker];
+            Object.keys(investments).forEach(ticker => {
+                if (currentPrices.hasOwnProperty(ticker)) { // Controlla se il ticker è confermato
+                    hasConfirmedTicker = true;
+                    const data = investments[ticker];
+                    const currentPrice = currentPrices[ticker];
 
-            data.forEach(row => {
-                const quantity = row.invested / row.price;
-                const currentValue = quantity * currentPrice;
+                    let tickerInvested = 0;
+                    let tickerValue = 0;
 
-                totalPortfolioInvested += row.invested + row.commission;
-                totalPortfolioValue += currentValue;
+                    data.forEach(row => {
+                        const quantity = row.invested / row.price;
+                        const currentValue = quantity * currentPrice;
+
+                        tickerInvested += row.invested + row.commission;
+                        tickerValue += currentValue;
+                    });
+
+                    totalPortfolioInvested += tickerInvested;
+                    totalPortfolioValue += tickerValue;
+
+                    // Calcola il contributo del ticker
+                    const tickerProfit = tickerValue - tickerInvested;
+                    const tickerProfitPercentage = (tickerProfit / tickerInvested) * 100;
+                    tickerContributions.push({
+                        ticker,
+                        profit: tickerProfit,
+                        percentage: tickerProfitPercentage
+                    });
+                }
             });
+
+            if (!hasConfirmedTicker) return; // Esce dalla funzione se nessun ticker è confermato
+
+            const totalPortfolioProfit = totalPortfolioValue - totalPortfolioInvested;
+            const totalPortfolioProfitPercentage = (totalPortfolioProfit / totalPortfolioInvested) * 100;
+
+            // Aggiorna il rendimento complessivo
+            document.getElementById('totalPortfolioInvested').textContent = `€${totalPortfolioInvested.toFixed(2)}`;
+            document.getElementById('totalPortfolioValue').textContent = `€${totalPortfolioValue.toFixed(2)}`;
+            document.getElementById('totalPortfolioReturn').innerHTML = `
+                <span class="${totalPortfolioProfit >= 0 ? 'positive' : 'negative'}">
+                    €${totalPortfolioProfit.toFixed(2)} (${totalPortfolioProfitPercentage.toFixed(2)}%)
+                </span>
+            `;
+
+            // Aggiorna il contributo dei ticker
+            const contributionList = document.getElementById('tickerContributionList');
+            contributionList.innerHTML = tickerContributions.map(ticker => `
+                <li>
+                    ${ticker.ticker}: 
+                    <span class="${ticker.profit >= 0 ? 'positive' : 'negative'}">
+                        €${ticker.profit.toFixed(2)} (${ticker.percentage.toFixed(2)}%)
+                    </span>
+                </li>
+            `).join('');
         }
-    });
-
-    if (!hasConfirmedTicker) return; // Esce dalla funzione se nessun ticker è confermato
-
-    const totalPortfolioProfit = totalPortfolioValue - totalPortfolioInvested;
-    const totalPortfolioProfitPercentage = (totalPortfolioProfit / totalPortfolioInvested) * 100;
-
-    // Aggiorna il rendimento complessivo
-    document.getElementById('totalPortfolioReturn').innerHTML = `
-        <span class="${totalPortfolioProfit >= 0 ? 'positive' : 'negative'}">
-            €${totalPortfolioProfit.toFixed(2)} (${totalPortfolioProfitPercentage.toFixed(2)}%)
-        </span>
-    `;
-}
-
     </script>
 </body>
 
